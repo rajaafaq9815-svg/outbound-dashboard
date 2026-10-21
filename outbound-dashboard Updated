@@ -1,0 +1,103 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+st.set_page_config(page_title="Warehouse Performance Dashboard", layout="wide")
+
+# Custom CSS matching your dark dashboard theme
+st.markdown("""
+    <style>
+    .stApp { background-color: #0b1020; color: #f4f7ff; }
+    div[data-testid="metric-container"] {
+        background: linear-gradient(145deg, rgba(35,51,79,0.82), rgba(19,29,49,0.82));
+        border: 1px solid #2a3b5a;
+        padding: 15px;
+        border-radius: 12px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("Warehouse (Outbound) Performance Dashboard")
+st.caption("Picking, Sorting & Packing • Staff-wise item details")
+
+# File Uploader
+uploaded_file = st.sidebar.file_uploader("Upload Daily Performance (CSV or Excel)", type=["csv", "xlsx"])
+
+# Default Initial Data (From your HTML file)
+default_data = [
+    ["MZWKSA007","HAKIMUL",13,105,10,18,79,144,0,0],
+    ["MZWKSA007","MAHAFUZ",7,354,4,8,148,255,0,0],
+    ["MZWKSA007","MAMON",10,191,8,31,184,317,0,0],
+    ["MZWKSA007","ROMAN",9,191,2,14,179,295,0,0],
+    ["MZWKSA007","SAMI",13,360,21,49,141,246,0,0],
+    ["MZWKSA007","SOFLUK",6,84,0,0,134,181,0,0],
+    ["MZWKSA009","ARSLAN",13,251,21,52,66,122,14,27],
+    ["MZWKSA009","NIJAM",1,1,0,0,0,0,0,0],
+    ["MZWKSA009","SAHIN",3,18,2,14,52,97,151,510],
+    ["MZWKSA011","SHAFIQ",4,122,7,15,30,40,0,0],
+    ["MZWKSA012","JAKIR",0,0,0,0,16,20,0,0],
+    ["MZWKSA013","JUBAYER1",1,22,0,0,1,3,0,0],
+    ["MZWKSA013","MAHAFUZ",2,89,0,0,0,0,0,0],
+    ["MZWKSA013","SHAHADAT.1",11,138,14,36,67,99,0,0],
+    ["MZWKSA014","SHISHIR",5,9,6,15,28,40,86,184],
+    ["MZWKSA015","AKRAM",12,46,5,9,1,1,0,0],
+    ["MZWKSA015","AZIZUR",7,14,0,0,0,0,0,0],
+    ["MZWKSA018","SUMON",0,0,27,65,8,8,0,0],
+    ["MZWKSA002","AYON",0,0,0,0,0,0,2,3],
+    ["MZWKSA002","ARMAN",0,0,0,0,26,72,37,86],
+    ["MZWKSA002","JUBAYER",0,0,0,0,21,28,120,289],
+    ["MZWKSA002","MEHEDI",1,6,0,0,9,9,235,584],
+    ["MZWKSA002","BALLAL",0,0,0,0,10,16,209,637]
+]
+
+cols = ["User ID", "Staff Name", "Zone Pick Orders", "Zone Pick Items", 
+        "Normal Pick Orders", "Normal Pick Items", "Sorter Orders", "Sorter Items", 
+        "Packing Orders", "Packing Items"]
+
+if uploaded_file is not None:
+    if uploaded_file.name.endswith('.csv'):
+        df = pd.read_csv(uploaded_file)
+    else:
+        df = pd.read_excel(uploaded_file)
+else:
+    df = pd.DataFrame(default_data, columns=cols)
+
+# Calculations
+df["Picking Items"] = df["Zone Pick Items"] + df["Normal Pick Items"]
+df["Sorting Items"] = df["Sorter Items"]
+df["Packing Items"] = df["Packing Items"]
+df["Total Items"] = df["Picking Items"] + df["Sorting Items"] + df["Packing Items"]
+
+pick_total = df["Picking Items"].sum()
+sort_total = df["Sorting Items"].sum()
+pack_total = df["Packing Items"].sum()
+grand_total = df["Total Items"].sum()
+
+# Top KPIs
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("Total Items Processed", f"{grand_total:,}")
+col2.metric("Staff Records", len(df))
+col3.metric("Picking Items", f"{pick_total:,}")
+col4.metric("Sorting Items", f"{sort_total:,}")
+col5.metric("Packing Items", f"{pack_total:,}")
+
+st.divider()
+
+col_left, col_right = st.columns([2, 1])
+
+with col_left:
+    st.subheader("Staff Performance — Total Items per Staff")
+    fig_bar = px.bar(
+        df.sort_values(by="Total Items", ascending=True),
+        x="Total Items",
+        y="Staff Name",
+        orientation='h',
+        color="Total Items",
+        color_continuous_scale="Viridis",
+        text_auto=True
+    )
+    fig_bar.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#fff")
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+with col_right:
+    st.subheader("Task Volume Share
